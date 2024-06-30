@@ -5,16 +5,29 @@
  * @format
  */
 
+import { registerGlobals } from 'react-native-webrtc';
+
+// Override the global WebRTC objects
+
+
 import React from 'react';
-import type {PropsWithChildren} from 'react';
+import { Inviter, SessionState, UserAgent, UserAgentOptions } from "sip.js";
+
+
+import { useEffect, useState } from 'react'
+
+
+
+
+import type { PropsWithChildren } from 'react';
 import {
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   useColorScheme,
   View,
+  Button
 } from 'react-native';
 
 import {
@@ -29,33 +42,128 @@ type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
 
 function App(): React.JSX.Element {
+
+  const [userAgent, setUserAgent] = useState(null)
+
+  useEffect(() => {
+    registerGlobals()
+    
+    const ua = new UserAgent({
+      uri: UserAgent.makeURI("sip:2000@192.168.2.150"),
+      authorizationUsername: '2000',
+      authorizationPassword: '1234',
+      transportOptions: {
+        server: "ws://192.168.2.150:8088/ws"
+      },
+    });
+
+    setUserAgent(ua)
+
+  }, [])
+
+  const makeCall = async () => {
+
+    const target = UserAgent.makeURI('sip:2001@192.168.2.150')
+
+    if (!target) {
+      throw new Error("Failed to create target URI.");
+    }
+  
+    // Create a user agent client to establish a session
+    userAgent.start().then(() => {
+
+      const inviter = new Inviter(userAgent, target, {
+        sessionDescriptionHandlerOptions: {
+          constraints: { audio: true, video: false }
+        }
+      });
+  
+      inviter.stateChange.addListener((newState) => {
+        switch (newState) {
+          case SessionState.Establishing:
+            // Session is establishing
+            break;
+          case SessionState.Established:
+            // Session has been established
+            break;
+          case SessionState.Terminated:
+            // Session has terminated
+            break;
+          default:
+            break;
+        }
+      });
+  
+      inviter.invite()
+      .then(() => {
+        console.log("invite sent")
+      })
+      .catch((error: Error) => {
+        console.log("error on invite")
+        console.log(error)
+      });
+
+    })
+    
+
+
+    // const socket = new WebSocketInterface('ws://192.168.2.150:8088/ws');
+    // console.log("log socket:")
+    // console.log(socket)
+
+    // const config = {
+    //   sockets: [socket],
+    //   uri: 'sip:2000@192.168.2.150',
+    //   password: '1234'
+    // }
+
+    // console.log("log config")
+    // console.log(config)
+
+    // const ua = new UA(config)
+    // console.log("log ua")
+    // console.log(ua)
+
+    // ua.start()
+    // console.log("ua after start()")
+    // console.log(ua)
+
+    // const eventHandlers = {
+    //   'progress': function (e) {
+    //     console.log('call is in progress');
+    //   },
+    //   'failed': function (e) {
+    //     console.log('call failed with cause: ' + e.data.cause);
+    //   },
+    //   'ended': function (e) {
+    //     console.log('call ended with cause: ' + e.data.cause);
+    //   },
+    //   'confirmed': function (e) {
+    //     console.log('call confirmed');
+    //   }
+    // };
+
+    // const options = {
+    //   'eventHandlers': eventHandlers,
+    //   'mediaConstraints': { 'audio': true, 'video': false }
+    // };
+
+    // await userAgent.call('sip:1000@192.168.2.150')
+
+  }
+
+
+
+
+
+
+
+
+
+
+
   const isDarkMode = useColorScheme() === 'dark';
 
   const backgroundStyle = {
@@ -63,37 +171,10 @@ function App(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    <View style={{ justifyContent: 'center', flex: 1 }}>
+      <Button title="Call" onPress={makeCall} />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
